@@ -7,6 +7,13 @@ const zones = [
   { value: "us-east-2", label: "Ohio" },
   { value: "us-east-1", label: "Virginia" },
   { value: "us-west-1", label: "California" },
+  { value: "us-west-2", label: "Oregon"},
+  { value: "ca-central-1", label: "Central Canada"},
+  { value: "ca-west-1", label: "Canda West"},
+  { value: "eu-west-1", label: "Ireland"},
+  { value: "eu-west-2", label: "London"},
+  { value: "eu-west-3", label: "Paris"},
+  {value: "af-south-1", label: "Cape Town"}
 ];
 
 function AvailabilityZoneSelector({ value, onChange, disabled }) {
