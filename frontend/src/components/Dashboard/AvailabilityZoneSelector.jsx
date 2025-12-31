@@ -1,41 +1,43 @@
 import { Globe, X, ChevronDown, Check } from "lucide-react";
-import { fetchCarbonIntensity } from "../../services/api";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { useEffect, useRef } from "react";
+import { fetchCarbonIntensity } from "../../services/api"; // Keep this!
+import { AWS_REGIONS } from "/constants/regions";     // Import the new list
 
-const zones = [
-  { value: "us-east-2", label: "Ohio" },
-  { value: "us-east-1", label: "Virginia" },
-  { value: "us-west-1", label: "California" },
-  { value: "us-west-2", label: "Oregon"},
-  { value: "ca-central-1", label: "Central Canada"},
-  { value: "ca-west-1", label: "Canda West"},
-  { value: "eu-west-1", label: "Ireland"},
-  { value: "eu-west-2", label: "London"},
-  { value: "eu-west-3", label: "Paris"},
-  {value: "af-south-1", label: "Cape Town"}
-];
+// 1. Generate the 'zones' list dynamically from your constants file
+// This replaces the hardcoded 'const zones = [...]' array.
+const zones = AWS_REGIONS.map(region => ({
+  value: region.id,
+  label: region.name
+}));
 
 function AvailabilityZoneSelector({ value, onChange, disabled }) {
   
-  // 1. Safety Check: Ensure value is always an array to prevent crashes
+  // 2. Safety Check
   const selectedValues = Array.isArray(value) ? value : [];
   const prevSelect = useRef([]);
 
-  // 2. Restore the API Call Side Effect
+  // 3. THE "MAGIC" EFFECT (Restored from your old code)
+  // This logic ensures we only fetch the *newly added* region, one at a time.
   useEffect(() => {
-    // Only fetch if there is actually a value selected
-    const newSelect = selectedValues.filter((value) => !prevSelect.current.includes(value));
+    // Find items that are in 'selectedValues' but NOT in 'prevSelect'
+    const newSelect = selectedValues.filter((val) => !prevSelect.current.includes(val));
+    
+    // Only call the API if there is a NEW selection
     if (newSelect.length > 0) {
+      // This sends just the NEW item (e.g. ['us-east-1']) to the API
+      // preventing the "regionA+regionB" crash.
       fetchCarbonIntensity(newSelect);
     }
+    
+    // Update history so we don't re-fetch it later
     prevSelect.current = [...prevSelect.current, ...newSelect];
-  }, [selectedValues]); // Re-run whenever the selection array changes
+  }, [selectedValues]);
 
   // Helper to remove a tag
   const removeZone = (e, zoneValue) => {
     e.preventDefault(); 
-    e.stopPropagation(); // Double safety to prevent menu opening
+    e.stopPropagation(); 
     onChange(selectedValues.filter((v) => v !== zoneValue));
   };
 
@@ -68,7 +70,8 @@ function AvailabilityZoneSelector({ value, onChange, disabled }) {
               ) : (
                 selectedValues.map((val) => (
                   <span key={val} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-sm rounded-md border border-blue-100">
-                    {zones.find((z) => z.value === val)?.label}
+                    {/* Dynamic Label Lookup */}
+                    {zones.find((z) => z.value === val)?.label || val}
                     <X 
                       className="w-3 h-3 cursor-pointer hover:text-blue-900" 
                       onClick={(e) => removeZone(e, val)}
