@@ -31,18 +31,6 @@ export const AWS_REGIONS = [
       zone: "North America",
       pue: 1.15, // Often slightly more efficient due to hydro/climate
     },
-    {
-      id: "us-gov-east-1",
-      name: "AWS GovCloud (US-East)",
-      zone: "North America",
-      pue: 1.2,
-    },
-    {
-      id: "us-gov-west-1",
-      name: "AWS GovCloud (US-West)",
-      zone: "North America",
-      pue: 1.2,
-    },
   
     // --- North America (Canada & Mexico) ---
     {
