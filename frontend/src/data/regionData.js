@@ -1,43 +1,40 @@
-// 1. STATIC METADATA: The details that never change
-const REGION_METADATA = {
-  "us-east-1": { provider: "AWS", regionName: "US East (Virginia)", zone: "North America", pue: 1.15 },
-  "us-east-2": { provider: "AWS", regionName: "US East (Ohio)", zone: "North America", pue: 1.15 },
-  "us-west-1": { provider: "AWS", regionName: "US West (N. California)", zone: "North America", pue: 1.15 },
-  "us-west-2": { provider: "AWS", regionName: "Oregon", zone: "Western United States", pue: 1.15 },
-  "ca-central-1": { provider: "AWS", regionName: "Canada Central", zone: "Canada", pue: 1.15 },
-  "ca-west-1": { provider: "AWS", regionName: "Canada West", zone: "Canada", pue: 1.15 },
-  "eu-west-1": { provider: "AWS", regionName: "Ireland", zone: "Europe", pue: 1.15 },
-  "eu-west-2": { provider: "AWS", regionName: "London", zone: "Europe", pue: 1.15 },
-  "eu-west-3": { provider: "AWS", regionName: "Paris", zone: "Europe", pue: 1.15 },
-  "af-south-1": { provider: "AWS", regionName: "Cape Town", zone: "South Africa", pue: 1.15 },
-};
+import { REGION_LOOKUP } from "/constants/regions";
 
-// 2. THE GENERATOR: Converts Backend Data -> UI Objects
+// 1. THE GENERATOR: Converts Backend Data -> UI Objects
 export function generateCloudRegions(apiData) {
   if (!apiData || !Array.isArray(apiData)) return [];
 
   return apiData.map((dataItem) => {
-    const meta = REGION_METADATA[dataItem.regionCode] || {
-      provider: "Unknown",
-      regionName: dataItem.regionCode,
+    // Look up static details from our new Constants file
+    // If not found, use a safe fallback object
+    const meta = REGION_LOOKUP[dataItem.regionCode] || {
+      name: dataItem.regionCode, 
       zone: "Unknown",
       pue: 1.2,
     };
 
     const intensity = dataItem.carbonIntensity;
-    const greenScore = intensity * meta.pue;
+    const pue = meta.pue || 1.2;
+    const greenScore = intensity * pue;
     const estimatedRenewable = dataItem.renewablepercent || 0; 
 
     return {
       id: dataItem.regionCode,
-      provider: meta.provider,
-      regionName: meta.regionName,
-      zone: meta.zone,
+      
+      // FIX 1: Hardcode AWS since we are currently AWS-focused
+      // (The constant file doesn't store 'provider' to save space)
+      provider: "AWS", 
+      
+      // FIX 2: Map 'meta.name' (from constants) to 'regionName' (for UI)
+      regionName: meta.name || dataItem.regionCode,
+      
+      zone: meta.zone || "Unknown",
       carbonIntensity: intensity,
-      pue: meta.pue,
+      pue: pue,
       greenScore: parseFloat(greenScore.toFixed(1)),
       renewablePercentage: Math.round(estimatedRenewable),
-      // If latency is 0/null, we pass it as 0. The sorter below handles the "0 = bad" logic.
+      
+      // Latency Handling: If 0/null, pass 0. The sorter handles the logic.
       estimatedLatency: dataItem.estimatedLatency || 0, 
     };
   });
@@ -50,7 +47,7 @@ export const taskTypeOptions = [
 ];
 
 // ------------------------------------------------------------------
-// 3. THE FIX: Smart Sorting that handles "0" Latency
+// 2. THE LOGIC: Smart Sorting
 // ------------------------------------------------------------------
 export function selectOptimalRegion(regions, taskType) {
   if (!regions || regions.length === 0) return null;
@@ -76,8 +73,7 @@ export function selectOptimalRegion(regions, taskType) {
 
       // CASE 3: Balanced Mode (Weighted Average)
       case "balanced": {
-        // 1. Get Max values for normalization
-        // We filter out 0 latencies so they don't skew the max calculation
+        // Filter out broken regions for the 'Max' calculation
         const validLatencies = regions
            .map(r => r.estimatedLatency)
            .filter(l => l > 0);
@@ -85,7 +81,7 @@ export function selectOptimalRegion(regions, taskType) {
         const maxGreen = Math.max(...regions.map((r) => r.greenScore)) || 1;
         const maxLatency = Math.max(...validLatencies, 1); 
 
-        // 2. Score Function (Lower is Better)
+        // Score Function (Lower is Better)
         const getScore = (region) => {
             const lat = getSortableLatency(region.estimatedLatency);
             
